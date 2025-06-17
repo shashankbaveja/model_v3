@@ -1,0 +1,52 @@
+# Configuration for the entire ML pipeline
+python_executable: '/opt/anaconda3/envs/KiteConnect/bin/python'
+
+#---------------------------------------------------
+# 1. DATA & FEATURE GENERATION
+#---------------------------------------------------
+data:
+  training_start_date: '2021-05-01'
+  training_end_date: '2024-05-30'
+  validation_end_date: '2024-06-01'
+  test_end_date: '2025-06-17'
+  token_list_query: "with penny_stocks as ( Select distinct a.instrument_token from kiteconnect.historical_data_day a where (close*volume < 2000000 or volume < 200000) and timestamp >= DATE_FORMAT(CURDATE() - INTERVAL 30 DAY, '%Y-%m-%d') ) Select distinct instrument_token FROM kiteconnect.instruments_zerodha a WHERE instrument_type = 'EQ' AND lower(name) NOT LIKE '%nifty%' and instrument_token not in (Select * from penny_stocks) AND lot_size = 1;"
+  # nifty_50_token: 256265
+
+target_generation:
+  lookahead_candles: 5
+  threshold_percent: 3.0
+  stop_loss_pct: 1.0
+  
+
+#---------------------------------------------------
+# 2. MODELING
+#---------------------------------------------------
+modeling:
+  # strategies_to_train: ['momentum', 'reversion','combined']
+  # model_types: ['lightgbm','catboost']
+  strategies_to_train: ['combined']
+  model_types: ['catboost']
+  random_state: 42
+
+#---------------------------------------------------
+# 3. BACKTESTING
+#---------------------------------------------------
+trading:
+  # A list of probability thresholds to test for PnL evaluation.
+  # backtest_thresholds: [0.60, 0.65, 0.70, 0.75, 0.80] 
+  backtest_thresholds: [0.80] 
+
+  # --- Simulation Settings ---
+  simulation_params:
+    initial_capital: 100000
+    transaction_cost_pct: 0.1
+
+
+live_params:
+    lookahead_candles: 5
+    threshold_percent: 3.0
+    stop_loss_pct: 1.0
+    strategies_to_train: ['combined']
+    model_types: ['catboost']
+    random_state: 42
+    backtest_thresholds: [0.60]
