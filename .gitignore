@@ -94,17 +94,12 @@ celerybeat-schedule.*
 # Data and report files
 data/
 reports/
-logs/
 
 *.parquet
 *.csv
 
 # Model and training artifacts
-models/
 catboost_info/
-*.joblib
-*.model
-*.pkl
 
 # OS-generated files
 .DS_Store

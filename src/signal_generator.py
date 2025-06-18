@@ -7,6 +7,7 @@ import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from src.data_pipeline import load_config
 
+
 def generate_all_signals():
     """
     Loads all trained models, generates trade signals based on specified thresholds,
@@ -95,9 +96,13 @@ def generate_all_signals():
                     # --- End of section ---
 
                     # Save the final signal file
-                    output_filename = f'{strategy}_{direction}_{model_type}_thresh_{threshold:.2f}_signals.parquet'
+                    # output_filename = f'{strategy}_{direction}_{model_type}_thresh_{threshold:.2f}_signals.parquet'
+                    # output_path = os.path.join(signals_dir, output_filename)
+                    # final_signal_df.to_parquet(output_path, index=False)
+
+                    output_filename = f'{strategy}_{direction}_{model_type}_thresh_{threshold:.2f}_signals.csv'
                     output_path = os.path.join(signals_dir, output_filename)
-                    final_signal_df.to_parquet(output_path, index=False)
+                    final_signal_df.to_csv(output_path, index=False)
                     print(f"    - Saved signals to {output_path}")
 
     print("\n--- Signal Generation Pipeline Finished ---")

@@ -5,7 +5,6 @@ import os
 import sys
 import re
 import warnings
-
 # Suppress the specific FutureWarning from the 'ta' library
 warnings.simplefilter(action='ignore', category=FutureWarning)
 

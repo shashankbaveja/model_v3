@@ -10,7 +10,6 @@ from sklearn.pipeline import Pipeline
 import lightgbm as lgb
 from catboost import CatBoostClassifier
 
-
 # Add the root directory for local library import
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -106,7 +105,7 @@ def main():
     model_config = config.get('modeling', {})
     model_types = model_config.get('model_types', ['lightgbm'])
     strategies = model_config.get('strategies_to_train', ['momentum', 'reversion','combined'])
-    targets = ['target_up', 'target_down']
+    targets = model_config.get('targets', ['target_up', 'target_down'])
     
     for strategy in strategies:
         for model_type in model_types:
