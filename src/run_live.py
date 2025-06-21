@@ -105,6 +105,11 @@ def main():
     if not run_step([python_executable,  '-u', 'src/gemini_bridge.py'], log_file):
         print("Stopping pipeline due to failure in gemini bridge.")
         sys.exit(1)
+    
+    # Step 8: Get Open positions from kite
+    if not run_step([python_executable,  '-u', 'src/get_open_positions.py'], log_file):
+        print("Stopping pipeline due to failure in Fetching Open Positions.")
+        sys.exit(1)
         
     # --- Final Summary ---
     # generate_summary_report(log_file)

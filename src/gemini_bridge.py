@@ -7,10 +7,12 @@ import sys
 import pandas as pd
 from datetime import datetime
 import json
+import sys
+sys.tracebacklimit = 0
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from src.data_pipeline import load_config
-from myKiteLib import kiteAPIs, system_initialization
+from myKiteLib import kiteAPIs, system_initialization, OrderPlacement
 
 # Load environment variables from .env file
 load_dotenv()
@@ -20,7 +22,6 @@ try:
     api_key = os.environ["GEMINI_API_KEY"]
     MODEL_NAME = os.environ["MODEL_NAME"]
 except KeyError as e:
-    print(f"Error: The environment variable '{e.args[0]}' is not set.")
     print("Please make sure your .env file is configured correctly with GEMINI_API_KEY and MODEL_NAME.")
     exit()
 
@@ -83,16 +84,6 @@ def save_to_file(content, output_file):
 
 def main():
     """Main function to run the Gemini bridge script."""
-    parser = argparse.ArgumentParser(
-        description="A bridge to the Gemini API to generate content from markdown files."
-    )
-    parser.add_argument(
-        "-o",
-        "--output",
-        default="trades.txt",
-        help="The name of the output file to save the response (default: output.txt).",
-    )
-    args = parser.parse_args()
 
     # The markdown files are now hardcoded
     
@@ -102,22 +93,38 @@ def main():
     
     signals_df = pd.read_csv('reports/trades/daily_trades.csv')
     signals_df = signals_df[signals_df['Action'] == 'SIGNAL_NO_EXECUTION']
+    signal_prob_df = signals_df[signals_df['Date'] == data_end_date][['Instrument_Token', 'Signal_Prob']]
     token_list = signals_df[signals_df['Date'] == data_end_date]['Instrument_Token'].unique()
     tradingsymbol = []
     print(token_list)
 
-
+    # Create mapping from token to tradingsymbol and signal_prob
     systemDetails = system_initialization()
+    token_to_symbol = {}
+    token_to_prob = {}
+    
     for token in token_list:
         result = systemDetails.run_query_limit(f"Select tradingsymbol from kiteconnect.instruments_zerodha where instrument_token = {token}")
-        tradingsymbol.append(result[0])
+        symbol = result[0]
+        tradingsymbol.append(symbol)
+        token_to_symbol[token] = symbol
+        
+        # Get signal probability for this token
+        prob_row = signal_prob_df[signal_prob_df['Instrument_Token'] == token]
+        if not prob_row.empty:
+            token_to_prob[token] = prob_row['Signal_Prob'].values[0]
+        else:
+            token_to_prob[token] = None
         
     print(f"Result: {tradingsymbol}")
 
     # Collect all results in an array
     all_results = []
     
-    for symbol in tradingsymbol:
+    for token in token_list:
+        symbol = token_to_symbol[token]
+        signal_prob = token_to_prob[token]
+        
         generated_content = get_opinion(symbol)
         
         if generated_content:
@@ -144,9 +151,7 @@ def main():
                 
                 # Parse the JSON response from LLM
                 opinion_data = json.loads(content)
-                
-                # Add the tradingsymbol to the JSON object
-                opinion_data['tradingsymbol'] = symbol
+                opinion_data = {'tradingsymbol': symbol, 'signal_prob': signal_prob, **opinion_data}
                 
                 # Add to results array
                 all_results.append(opinion_data)
@@ -155,6 +160,7 @@ def main():
                 # Add error entry with actual error details
                 all_results.append({
                     "tradingsymbol": symbol,
+                    "signal_prob": signal_prob,
                     "opinion": "Error", 
                     "confidence": "N/A",
                     "reasoning": f"Failed to parse LLM response: {str(e)}",
@@ -163,6 +169,7 @@ def main():
             except Exception as e:
                 all_results.append({
                     "tradingsymbol": symbol,
+                    "signal_prob": signal_prob,
                     "opinion": "Error",
                     "confidence": "N/A", 
                     "reasoning": f"Unexpected error: {str(e)}",
@@ -171,6 +178,7 @@ def main():
         else:
             all_results.append({
                 "tradingsymbol": symbol,
+                "signal_prob": signal_prob,
                 "opinion": "Error",
                 "confidence": "N/A",
                 "reasoning": "No response generated from LLM",
@@ -179,7 +187,12 @@ def main():
     
     # Save all results as JSON array to file
     if all_results:
-        save_to_file(json.dumps(all_results, indent=2), args.output)
+        save_to_file(json.dumps(all_results, indent=2), 'todays_trades/trades.txt')
+
+    order_placement = OrderPlacement()
+    order_placement.send_telegram_message("New Trades:")
+    for r in all_results:
+        order_placement.send_telegram_message(json.dumps(r, indent=4))
 
 
 

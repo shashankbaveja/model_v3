@@ -37,10 +37,10 @@ class DailyTradeLogger:
         # Create the log file with headers if it doesn't exist
         if not os.path.exists(self.log_file_path):
             os.makedirs(os.path.dirname(self.log_file_path), exist_ok=True)
-            headers = ['Date', 'Model', 'Instrument_Token', 'Action', 'Price', 'PnL', 'Reason']
+            headers = ['Date', 'Model', 'Instrument_Token', 'Action', 'Price', 'PnL', 'Reason', 'Signal_Prob']
             pd.DataFrame(columns=headers).to_csv(self.log_file_path, index=False)
     
-    def log_trade_entry(self, date: str, model: str, instrument_token: int, entry_price: float):
+    def log_trade_entry(self, date: str, model: str, instrument_token: int, entry_price: float, signal_prob: float = None):
         """Log a trade entry only if it occurs on test_end_date."""
         if date == self.test_end_date:
             activity = {
@@ -50,11 +50,12 @@ class DailyTradeLogger:
                 'Action': 'ENTRY',
                 'Price': entry_price,
                 'PnL': 0.0,
-                'Reason': 'Signal'
+                'Reason': 'Signal',
+                'Signal_Prob': signal_prob
             }
             self._append_to_csv(activity)
     
-    def log_trade_exit(self, date: str, model: str, instrument_token: int, exit_price: float, pnl: float, reason: str):
+    def log_trade_exit(self, date: str, model: str, instrument_token: int, exit_price: float, pnl: float, reason: str, signal_prob: float = None):
         """Log a trade exit only if it occurs on test_end_date."""
         if date == self.test_end_date:
             activity = {
@@ -64,11 +65,12 @@ class DailyTradeLogger:
                 'Action': 'EXIT',
                 'Price': exit_price,
                 'PnL': pnl,
-                'Reason': reason
+                'Reason': reason,
+                'Signal_Prob': signal_prob
             }
             self._append_to_csv(activity)
     
-    def log_signal_no_execution(self, signal_date: str, model: str, instrument_token: int):
+    def log_signal_no_execution(self, signal_date: str, model: str, instrument_token: int, signal_prob: float = None):
         """Log a signal that couldn't be executed due to missing price data."""
         if signal_date == self.test_end_date:
             activity = {
@@ -78,7 +80,8 @@ class DailyTradeLogger:
                 'Action': 'SIGNAL_NO_EXECUTION',
                 'Price': None,
                 'PnL': 0.0,
-                'Reason': 'missing_price_data'
+                'Reason': 'missing_price_data',
+                'Signal_Prob': signal_prob
             }
             self._append_to_csv(activity)
     
@@ -243,6 +246,7 @@ class BacktestEngineWithLogging(BacktestEngine):
         # MAIN ITERATION: Instrument by Instrument, Date by Date
         for i, instrument_token in enumerate(unique_instruments):
             active_trade = None
+            active_trade_signal_prob = None  # Store signal_prob for the active trade
             instrument_signals = 0
             
             # Get all signals for this instrument
@@ -263,13 +267,15 @@ class BacktestEngineWithLogging(BacktestEngine):
                             active_trade.close_trade(date, current_day_data['close'], exit_reason)
                             self.completed_trades.append(active_trade)
                             
-                            # Log the exit
+                            # Log the exit (use the original signal_prob from entry)
                             self.trade_logger.log_trade_exit(
                                 date, self.model_name, instrument_token, 
-                                current_day_data['close'], active_trade.pnl, exit_reason
+                                current_day_data['close'], active_trade.pnl, exit_reason,
+                                signal_prob=active_trade_signal_prob
                             )
                             
                             active_trade = None
+                            active_trade_signal_prob = None
                 
                 # 2. CHECK FOR NEW SIGNAL ENTRY (only if no active trade)
                 elif active_trade is None:
@@ -282,6 +288,10 @@ class BacktestEngineWithLogging(BacktestEngine):
                         signal_data = day_signals.iloc[0]
                         total_signals_processed += 1
                         instrument_signals += 1
+                        
+                        # Extract signal probability from signal data
+                        signal_prob = signal_data.get('signal_prob', None)
+                        active_trade_signal_prob = signal_prob  # Store for potential exit logging
                         
                         # Get next day's data for entry
                         next_day_data = self.get_next_day_data(instrument_token, date)
@@ -298,10 +308,10 @@ class BacktestEngineWithLogging(BacktestEngine):
                             )
                             trades_entered += 1
                             
-                            # Log the entry
+                            # Log the entry with signal probability
                             self.trade_logger.log_trade_entry(
                                 next_day_data['timestamp'], self.model_name, 
-                                instrument_token, next_day_data['open']
+                                instrument_token, next_day_data['open'], signal_prob
                             )
                         else:
                             # Create trade with no execution (track the signal)
@@ -314,9 +324,9 @@ class BacktestEngineWithLogging(BacktestEngine):
                                 holding_period=self.holding_period
                             )
                             
-                            # Log the signal that couldn't be executed
+                            # Log the signal that couldn't be executed with signal probability
                             self.trade_logger.log_signal_no_execution(
-                                date, self.model_name, instrument_token
+                                date, self.model_name, instrument_token, signal_prob
                             )
             
             # Close any remaining active trade at the end
@@ -333,10 +343,11 @@ class BacktestEngineWithLogging(BacktestEngine):
                         'data_end'
                     )
                     
-                    # Log the exit
+                    # Log the exit with original signal probability
                     self.trade_logger.log_trade_exit(
                         last_day_data['timestamp'], self.model_name, instrument_token,
-                        last_day_data['close'], active_trade.pnl, 'data_end'
+                        last_day_data['close'], active_trade.pnl, 'data_end',
+                        signal_prob=active_trade_signal_prob
                     )
                 else:
                     # No-execution trade - just close it as signal_no_execution

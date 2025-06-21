@@ -2,6 +2,7 @@ import yaml
 import pandas as pd
 import os
 import sys
+from datetime import datetime
 
 # Add the root directory to the Python path to allow importing 'myKiteLib'
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -98,6 +99,20 @@ def main():
     print("--- Starting Data Ingestion Pipeline ---")
     
     config = load_config()
+    # if config['data']['test_end_date'] != datetime.now().strftime('%Y-%m-%d'):
+    #     print("Today's Date is not updated, do you want to continue? (y/n)")
+        
+    #     while True:
+    #         user_input = input().strip().lower()
+    #         if user_input == 'y':
+    #             print("Continuing with the existing test_end_date...")
+    #             break
+    #         elif user_input == 'n':
+    #             print("Exiting script as requested.")
+    #             sys.exit(0)
+    #         else:
+    #             print("Please enter 'y' to continue or 'n' to exit:")
+    
     api_client = kiteAPIs()
     sys_details = system_initialization()
     

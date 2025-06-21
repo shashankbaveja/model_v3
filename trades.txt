@@ -1,9 +1,0 @@
-[
-  {
-    "opinion": "Agree",
-    "confidence": "Medium",
-    "reasoning": "The BUY signal aligns with the current bullish macro-environment for silver. Expectations of interest rate cuts by global central banks, particularly the US Fed, tend to weaken the dollar and support non-yielding assets. Silver benefits from strong, ongoing industrial demand, especially from the solar and EV sectors, which provides a fundamental floor. Technically, the HDFCSILVER ETF has shown positive momentum, trading above key moving averages. The falling gold-to-silver ratio also indicates silver's relative outperformance, suggesting continued strength. While a short-term pullback is possible after recent gains, the underlying trend for the 7-day timeframe remains positive.",
-    "risk_factors": "Key risks include a sudden resurgence in US dollar strength or unexpectedly hawkish central bank commentary, which could pressure commodity prices. As the ETF is trading near recent highs, it is susceptible to short-term profit-taking and increased volatility.",
-    "tradingsymbol": "HDFCSILVER"
-  }
-]
