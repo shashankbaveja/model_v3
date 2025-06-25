@@ -36,6 +36,7 @@ warnings.filterwarnings("ignore")
 
 
 if __name__ == "__main__":
+
     BACKFILL_INTERVAL = 'day'
     BACKFILL_DAYS = 1
     
@@ -48,15 +49,11 @@ if __name__ == "__main__":
 
     print(f"starting system_init")
     systemDetails = system_initialization()
-    print(f"starting init_trading")
     systemDetails.init_trading()
-    print(f"starting kiteAPIs")
     callKite = kiteAPIs()
-    print(f"starting get_instrument_active_tokens")
+    trades = callKite.get_trades()
+    print("Trades Updated in DB!")
     tokenList = [256265] ## NIFTY INDEX
-    # tokenList.extend(callKite.get_instrument_active_tokens('CE',end_dt_backfill))
-    # tokenList.extend(callKite.get_instrument_active_tokens('PE',end_dt_backfill))
-    # tokenList.extend(callKite.get_instrument_active_tokens('FUT',end_dt_backfill))
     tokenList.extend(callKite.get_instrument_all_tokens('EQ'))
 
 
@@ -69,45 +66,6 @@ if __name__ == "__main__":
         print(f"Error fetching historical data: {e}")
         logging.error(f"Error fetching historical data: {e}")
         df = pd.DataFrame() # Initialize an empty DataFrame or handle as needed
-
-
-
-    
-
-
-# if __name__ == "__main__":
-#     BACKFILL_INTERVAL = 'minute'
-#     BACKFILL_DAYS = 59
-    
-#     # today_date = date.today()
-#     today_date = date(2022,12,26)
-#     end_dt_backfill = datetime.combine(today_date, time(23, 59, 59))
-    
-#     start_date_val = today_date - (timedelta(days=BACKFILL_DAYS))
-#     start_dt_backfill = datetime.combine(start_date_val, time(0, 0, 0))
-    
-#     for i in range(1,16):
-#         print(f"Fetching data for {start_dt_backfill} to {end_dt_backfill}")
-#         systemDetails = system_initialization()
-#         systemDetails.init_trading()
-#         callKite = kiteAPIs()
-
-#         tokenList = [256265] ## NIFTY INDEX
-#         # tokenList.extend(callKite.get_instrument_active_tokens('CE',end_dt_backfill))
-#         # tokenList.extend(callKite.get_instrument_active_tokens('PE',end_dt_backfill))
-#         # tokenList.extend(callKite.get_instrument_active_tokens('FUT',end_dt_backfill)
-#         # tokenList.extend(callKite.get_instrument_all_tokens('EQ'))
-
-
-#         try:
-#             df = callKite.getHistoricalData(start_dt_backfill,  end_dt_backfill, tokenList, BACKFILL_INTERVAL)
-#         except (KiteException, requests.exceptions.ReadTimeout) as e:
-#             print(f"Error fetching historical data: {e}")
-#             logging.error(f"Error fetching historical data: {e}")
-#             df = pd.DataFrame() # Initialize an empty DataFrame or handle as needed
-#         end_dt_backfill = end_dt_backfill - (timedelta(days=BACKFILL_DAYS))
-#         start_dt_backfill = start_dt_backfill - (timedelta(days=BACKFILL_DAYS))
-
-
-
-    
+    systemDetails.run_query_limit(f"Call trades_PnL();")
+    Pnl = systemDetails.GetPnL()
+    Pnl.to_csv('todays_trades/pnl.csv')

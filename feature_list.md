@@ -65,37 +65,40 @@ This document categorizes all features into three distinct groups for building s
 
 
 ## To be integrated in future
-*   Price_above_last_15m_high_pivot: Price above last 15 minute high pivot point
-*   Price_near_last_15m_high_pivot: Price is within 0.1% of last 15 minute high pivot point
-*   Price_below_last_15m_low_pivot: Price above last 15 minute low pivot point
-*   Price_above_last_30m_high_pivot: Price above last 30 minute high pivot point
-*   Price_below_last_30m_low_pivot: Price above last 30 minute low pivot point
-*   Price_above_last_1h_high_pivot: Price above last 1h minute high pivot point
-*   Price_below_last_1h_low_pivot: Price above last 1h minute low pivot point
-*   Price_above_last_4h_high_pivot: Price above last 4h minute high pivot point
-*   Price_below_last_4h_low_pivot: Price above last 4h minute low pivot point
-*   Price within 0.1% of last 30 minute high
-*   Price within 0.1% of last 30 minute low
-*   Price within 0.1% of last 60 minute high
-*   Price within 0.1% of last 60 minute low
-*   Price within 0.1% of last 180 minute high
-*   Price within 0.1% of last 180 minute low
-*   Price within 0.1% of last 5 day high
-*   Price within 0.1% of last 5 day low
-*   Price within 0.1% of last 15 day high
-*   Price within 0.1% of last 15 day low
+*   Price within 1% of last 5 day high
+*   Price within 1% of last 5 day low
+*   Price within 1% of last 15 day high
+*   Price within 1% of last 15 day low
+*   Price within 1% of last 30 day high
+*   Price within 1% of last 30 day low
+*   Price within 1% of last 60 day high
+*   Price within 1% of last 60 day low
+*   Price within 1% of last 180 day high
+*   Price within 1% of last 180 day low
+*   Price above 101% of last 5 day high
+*   Price above 101% of last 5 day low
+*   Price above 101% of last 15 day high
+*   Price above 101% of last 15 day low
+*   Price above 101% of last 30 day high
+*   Price above 101% of last 30 day low
+*   Price above 101% of last 60 day high
+*   Price above 101% of last 60 day low
+*   Price above 101% of last 180 day high
+*   Price above 101% of last 180 day low
+*   Price below 99% of last 5 day high
+*   Price below 99% of last 5 day low
+*   Price below 99% of last 15 day high
+*   Price below 99% of last 15 day low
+*   Price below 99% of last 30 day high
+*   Price below 99% of last 30 day low
+*   Price below 99% of last 60 day high
+*   Price below 99% of last 60 day low
+*   Price below 99% of last 180 day high
+*   Price below 99% of last 180 day low
+
+*   High_above_prev_high_5bars: Current high above highest high in last 5 bars
 *   High_above_prev_high_3bars: Current high above highest high in last 3 bars
 *   Price_move_above_1p5_ATR: Price movement exceeds 1.5x ATR (significant move)
-*   Price above 100.1% of last 30 minute high
-*   Price below 100.1% of last 30 minute low
-*   Price above 100.1% of last 60 minute high
-*   Price below 100.1% of last 60 minute low
-*   Price above 100.1% of last 180 minute high
-*   Price below 100.1% of last 180 minute low
-*   Price above 100.1% of last 5 day high
-*   Price below 100.1% of last 5 day low
-*   Price above 100.1% of last 15 day high
-*   Price below 100.1% of last 15 day low
 *   RSI_bullish_divergence_5min: RSI making higher lows while price makes lower lows
 *   OBV_bullish_divergence: On-Balance Volume diverging bullishly from price
 *   Volume_above_avg_at_VWAP_cross: Above-average volume during VWAP crossover

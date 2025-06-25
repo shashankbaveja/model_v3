@@ -47,6 +47,7 @@ def get_opinion(tradingsymbol):
     2. Company fundamentals and recent news
     3. Technical indicators and market sentiment
     4. Overall market conditions
+    5. Take into account the latest news on these companies for the last 1-2 days
 
     RESPONSE FORMAT:
     Return a valid JSON object with this exact structure:
@@ -92,12 +93,10 @@ def main():
     data_end_date = data_config.get('test_end_date', datetime.now().strftime('%Y-%m-%d'))
     
     signals_df = pd.read_csv('reports/trades/daily_trades.csv')
-    signals_df = signals_df[signals_df['Action'] == 'SIGNAL_NO_EXECUTION']
-    signal_prob_df = signals_df[signals_df['Date'] == data_end_date][['Instrument_Token', 'Signal_Prob']]
-    token_list = signals_df[signals_df['Date'] == data_end_date]['Instrument_Token'].unique()
+    # signals_df = signals_df[signals_df['Action'] == 'SIGNAL_NO_EXECUTION']
+    signal_prob_df = signals_df[['instrument_token', 'signal_prob']]
+    token_list = signals_df['instrument_token'].unique()
     tradingsymbol = []
-    print(token_list)
-
     # Create mapping from token to tradingsymbol and signal_prob
     systemDetails = system_initialization()
     token_to_symbol = {}
@@ -110,9 +109,9 @@ def main():
         token_to_symbol[token] = symbol
         
         # Get signal probability for this token
-        prob_row = signal_prob_df[signal_prob_df['Instrument_Token'] == token]
+        prob_row = signal_prob_df[signal_prob_df['instrument_token'] == token]
         if not prob_row.empty:
-            token_to_prob[token] = prob_row['Signal_Prob'].values[0]
+            token_to_prob[token] = prob_row['signal_prob'].values[0]
         else:
             token_to_prob[token] = None
         

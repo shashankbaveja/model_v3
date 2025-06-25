@@ -7,7 +7,9 @@ import pandas as pd
 
 # --- Configuration ---
 LOG_DIR = 'logs'
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from myKiteLib import OrderPlacement
 
 def run_step(command, log_file):
     """Executes a command as a subprocess and logs its output."""
@@ -49,6 +51,18 @@ def run_step(command, log_file):
         
     return True # Indicate success
 
+
+def load_config(config_path='config/parameters.yml'):
+    """Loads the YAML configuration file."""
+    try:
+        with open(config_path, 'r') as file:
+            return yaml.safe_load(file)
+    except FileNotFoundError:
+        print(f"Error: Configuration file not found at {config_path}")
+        sys.exit(1)
+    except Exception as e:
+        print(f"Error loading configuration file: {e}")
+        sys.exit(1)
 
 def main():
     """Main pipeline execution function."""
@@ -95,28 +109,20 @@ def main():
         print("Stopping pipeline due to failure in signal generation.")
         sys.exit(1)
 
-    # Step 6: Run All Backtests (PnL Evaluation)
-    if not run_step([python_executable,  '-u', 'src/run_backtest.py'], log_file):
-        print("Pipeline finished, but backtesting step failed.")
-        # We still want to try and generate a summary if some steps completed
-        sys.exit(1)
-
     # Step 7: Ask Gemini for confirmation on trades
     if not run_step([python_executable,  '-u', 'src/gemini_bridge.py'], log_file):
         print("Stopping pipeline due to failure in gemini bridge.")
         sys.exit(1)
     
-    # Step 8: Get Open positions from kite
-    if not run_step([python_executable,  '-u', 'src/get_open_positions.py'], log_file):
-        print("Stopping pipeline due to failure in Fetching Open Positions.")
-        sys.exit(1)
-        
-    # --- Final Summary ---
-    # generate_summary_report(log_file)
-
     print(f"\n--- Pipeline Finished Successfully ---")
     print(f"Full log available at: {log_file}")
 
 
 if __name__ == "__main__":
+    config = load_config()
+    order_placement = OrderPlacement()
+    order_placement.send_telegram_message(f"Starting Live Run for date {config['data']['test_end_date']}")
     main() 
+
+    
+    

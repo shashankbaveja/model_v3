@@ -233,6 +233,7 @@ def calculate_all_features(df):
     print(f"Filtering out instruments with fewer than {MIN_DATAPOINTS} data points...")
     original_instruments = df['instrument_token'].nunique()
     df = df.groupby('instrument_token').filter(lambda x: len(x) >= MIN_DATAPOINTS)
+    # breakpoint()
     filtered_instruments = df['instrument_token'].nunique()
     print(f"Filtered instruments: {original_instruments} -> {filtered_instruments}")
 

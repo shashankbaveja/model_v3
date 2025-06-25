@@ -8,7 +8,7 @@ data:
   training_start_date: '2021-05-01'
   training_end_date: '2024-05-30'
   validation_end_date: '2024-06-01'
-  test_end_date: '2025-06-20'
+  test_end_date: '2025-06-24'
   token_list_query: "with penny_stocks as ( Select distinct a.instrument_token from kiteconnect.historical_data_day a where (close*volume < 2000000 or volume < 200000) and timestamp >= DATE_FORMAT(CURDATE() - INTERVAL 30 DAY, '%Y-%m-%d') ) Select distinct instrument_token FROM kiteconnect.instruments_zerodha a WHERE instrument_type = 'EQ' AND lower(name) NOT LIKE '%nifty%' and instrument_token not in (Select * from penny_stocks) AND lot_size = 1"
   # nifty_50_token: 256265
 
@@ -50,14 +50,3 @@ trading:
     initial_capital: 500000
     transaction_cost_pct: 0.0
     capital_per_trade: 50000
-
-
-live_params:
-    lookahead_candles: 5
-    threshold_percent: 3.0
-    stop_loss_pct: 1.0
-    strategies_to_train: ['combined']
-    model_types: ['catboost']
-    random_state: 42
-    backtest_thresholds: [0.60]
-

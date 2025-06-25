@@ -2,11 +2,13 @@ import pandas as pd
 import joblib
 import os
 import sys
+from datetime import datetime
 
 # Add the parent directory to the Python path to allow for package-like imports
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from src.data_pipeline import load_config
 
+log_file_path = "reports/trades/daily_trades.csv"
 
 def generate_all_signals():
     """
@@ -18,6 +20,7 @@ def generate_all_signals():
 
     # Get parameters from config
     model_config = config.get('modeling', {})
+    data_config = config.get('data', {})
     strategies = model_config.get('strategies_to_train', ['momentum', 'reversion', 'combined'])
     model_types = model_config.get('model_types', ['lightgbm'])
     thresholds = config.get('trading', {}).get('backtest_thresholds', [0.6])
@@ -53,7 +56,7 @@ def generate_all_signals():
         # Prepare feature matrix X_test by dropping non-feature columns
         X_test = feature_df.drop(columns=['target_up', 'target_down', 'instrument_token', 'timestamp'], errors='ignore')
 
-        for direction in ['up', 'down']:
+        for direction in ['up']:
             for model_type in model_types:
                 
                 model_name = f'{strategy}_{direction}_{model_type}_model.joblib'
@@ -103,6 +106,13 @@ def generate_all_signals():
                     output_filename = f'{strategy}_{direction}_{model_type}_thresh_{threshold:.2f}_signals.csv'
                     output_path = os.path.join(signals_dir, output_filename)
                     final_signal_df.to_csv(output_path, index=False)
+
+                    data_end_date = data_config.get('test_end_date', datetime.now().strftime('%Y-%m-%d'))
+                    signal_df_for_gemini = final_signal_df[final_signal_df['timestamp'] == data_end_date][['instrument_token', 'signal', 'signal_prob']]
+                    signal_df_for_gemini = signal_df_for_gemini[signal_df_for_gemini['signal'] == 1][['instrument_token', 'signal', 'signal_prob']]
+                    
+                    signal_df_for_gemini.to_csv(log_file_path, index=False)
+                
                     print(f"    - Saved signals to {output_path}")
 
     print("\n--- Signal Generation Pipeline Finished ---")

@@ -26,6 +26,7 @@ def fetch_and_clean_data(api_client, sys_details, config):
     print("Fetching data from the database...")
     data_config = config['data']
     tokenList = sys_details.run_query_limit(data_config['token_list_query'])
+    print(len(tokenList))
     tokenList = map(str, tokenList)
     tokenList = ', '.join(tokenList)
     df = api_client.extract_data_from_db(
@@ -34,7 +35,6 @@ def fetch_and_clean_data(api_client, sys_details, config):
         interval='day',
         instrument_token=tokenList
     )
-    
     if df is None or df.empty:
         print("Error: No data returned from the database. Exiting.")
         sys.exit(1)
@@ -117,12 +117,11 @@ def main():
     sys_details = system_initialization()
     
     full_df = fetch_and_clean_data(api_client, sys_details, config)
-    
+    print(len(full_df))
     train_df, validation_df, test_df = split_data(full_df, config)
     
     save_datasets(train_df, validation_df, test_df)
     
     print("--- Data Ingestion Pipeline Finished ---")
-
 if __name__ == "__main__":
     main()

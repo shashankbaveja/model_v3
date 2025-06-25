@@ -172,6 +172,7 @@ order_placement = OrderPlacement()
 order_placement.send_telegram_message("Existing Trades:")
 order_placement.send_telegram_message(telegram_df.to_json(orient='records', indent=4))
 
+
 # Clean up database connections to avoid MySQL cleanup warnings
 try:
     if hasattr(sys_details, 'db_connection'):
