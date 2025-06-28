@@ -79,13 +79,14 @@ def main():
     
     # --- Pipeline Steps ---
     
-    # Step 1: Feature Generation (Base features and targets)
-    # This script will need to be modified to accept config for the new target
-    
+
+    if not run_step([python_executable,  '-u', 'src/auto_update_date.py'], log_file):
+        print("Stopping pipeline due to failure in date update.")
+        sys.exit(1)
+
     if not run_step([python_executable,  '-u', 'src/data_backfill/data_backfill_daily.py'], log_file):
         print("Stopping pipeline due to failure in data backfill.")
         sys.exit(1)
-
 
     if not run_step([python_executable,  '-u', 'src/data_pipeline.py'], log_file):
         print("Stopping pipeline due to failure in data pipeline.")
@@ -99,17 +100,14 @@ def main():
         print("Stopping pipeline due to failure in pattern feature generation.")
         sys.exit(1)
         
-    # Step 3: Merge Pattern Features
     if not run_step([python_executable,  '-u', 'src/merge_features.py'], log_file):
         print("Stopping pipeline due to failure in feature merging.")
         sys.exit(1)
 
-    # Step 6: Signal Generation
     if not run_step([python_executable,  '-u', 'src/signal_generator.py'], log_file):
         print("Stopping pipeline due to failure in signal generation.")
         sys.exit(1)
 
-    # Step 7: Ask Gemini for confirmation on trades
     if not run_step([python_executable,  '-u', 'src/gemini_bridge.py'], log_file):
         print("Stopping pipeline due to failure in gemini bridge.")
         sys.exit(1)

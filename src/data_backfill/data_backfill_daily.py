@@ -18,7 +18,7 @@ import time
 import pandas as pd
 from sqlalchemy import create_engine
 import pymysql
-from myKiteLib import system_initialization, kiteAPIs
+from myKiteLib import system_initialization, kiteAPIs, OrderPlacement
 import logging
 import json
 from datetime import date, timedelta, datetime, time
@@ -51,8 +51,16 @@ if __name__ == "__main__":
     systemDetails = system_initialization()
     systemDetails.init_trading()
     callKite = kiteAPIs()
+    order_placement = OrderPlacement()
     trades = callKite.get_trades()
     print("Trades Updated in DB!")
+    
+    systemDetails.run_query_limit(f"Call trades_PnL();")
+    # Pnl, metrics = systemDetails.GetPnL()
+    # Pnl.to_csv('pnl.csv')
+    # print(metrics)
+    # order_placement.send_telegram_message(f"Metrics: {metrics}")
+    
     tokenList = [256265] ## NIFTY INDEX
     tokenList.extend(callKite.get_instrument_all_tokens('EQ'))
 
@@ -66,6 +74,4 @@ if __name__ == "__main__":
         print(f"Error fetching historical data: {e}")
         logging.error(f"Error fetching historical data: {e}")
         df = pd.DataFrame() # Initialize an empty DataFrame or handle as needed
-    systemDetails.run_query_limit(f"Call trades_PnL();")
-    Pnl = systemDetails.GetPnL()
-    Pnl.to_csv('todays_trades/pnl.csv')
+    

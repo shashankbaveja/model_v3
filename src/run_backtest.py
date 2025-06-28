@@ -32,7 +32,7 @@ class DailyTradeLogger:
         self.test_end_date = data_config.get('test_end_date', datetime.now().strftime('%Y-%m-%d'))
 
         # self.test_end_date = config.get('data', datetime.now().strftime('%Y-%m-%d'))
-        self.log_file_path = "reports/trades/daily_trades.csv"
+        self.log_file_path = "reports/trades/daily_trades_backtest.csv"
         
         # Create the log file with headers if it doesn't exist
         if not os.path.exists(self.log_file_path):

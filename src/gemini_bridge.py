@@ -8,11 +8,13 @@ import pandas as pd
 from datetime import datetime
 import json
 import sys
+import math
 sys.tracebacklimit = 0
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from src.data_pipeline import load_config
 from myKiteLib import kiteAPIs, system_initialization, OrderPlacement
+from kiteconnect.exceptions import KiteException, InputException
 
 # Load environment variables from .env file
 load_dotenv()
@@ -52,17 +54,16 @@ def get_opinion(tradingsymbol):
     RESPONSE FORMAT:
     Return a valid JSON object with this exact structure:
     {{
-        "opinion": "Agree|Disagree|Neutral",
+        "opinion": "Agree|Disagree",
         "confidence": "High|Medium|Low",
         "reasoning": "Your analysis in 80-120 words explaining the key factors",
-        "risk_factors": "Main risks to consider (30-50 words)",
+        "latest_news": "Any key developments reported publicly in the last 1-2 days like quaterly reports or big deals closed or any other news (30-50 words)",
     }}
 
     GUIDELINES:
     - Base analysis on current market data and recent trends
     - Be objective and consider both bullish and bearish factors
-    - Focus on actionable insights
-    - If data is insufficient, use "Neutral" with explanation
+    - Focus on analyst recommendations and news
 
     Provide your analysis now:"""
 
@@ -121,6 +122,7 @@ def main():
     all_results = []
     
     for token in token_list:
+        print(token)
         symbol = token_to_symbol[token]
         signal_prob = token_to_prob[token]
         
@@ -189,11 +191,59 @@ def main():
         save_to_file(json.dumps(all_results, indent=2), 'todays_trades/trades.txt')
 
     order_placement = OrderPlacement()
+    order_placement.init_trading()
+
     order_placement.send_telegram_message("New Trades:")
-    for r in all_results:
-        order_placement.send_telegram_message(json.dumps(r, indent=4))
+   
+    for item in all_results:
+        order_placement.send_telegram_message(json.dumps(item, indent=4))
+        trading_symbol = item["tradingsymbol"]
+        query = f"Select close from kiteconnect.historical_data_day where timestamp = curdate() and instrument_token in (Select instrument_token from kiteconnect.instruments_zerodha where tradingsymbol = '{trading_symbol}' and exchange = 'NSE');"
+        close_price = systemDetails.run_query_limit(query)
+        
+        if not close_price:
+            query = f"Select close from kiteconnect.historical_data_day where timestamp = curdate() and instrument_token in (Select instrument_token from kiteconnect.instruments_zerodha where tradingsymbol = '{trading_symbol}' and exchange = 'BSE');"
+            close_price = systemDetails.run_query_limit(query)
 
+        quantity = math.floor(21000/float(close_price[0]))
+        print("Symbol: ", trading_symbol, " Quantity: ", quantity)
+            
+        # Place order on NSE first
+        order_id = order_placement.place_market_order_live(
+            trading_symbol, 'NSE', 'BUY', quantity, 'CNC', 'Automatic'
+        )
 
+        # Check if the order placement returned an exception
+        if isinstance(order_id, KiteException):
+            # Check for the specific exception to retry on BSE
+            if isinstance(order_id, InputException) and 'The instrument you are placing an order for has either expired or does not exist' in str(order_id):
+                print(f"Instrument {trading_symbol} not found on NSE. Attempting on BSE.")
+                
+                # Retry placing the order on BSE
+                order_id_bse = order_placement.place_market_order_live(
+                    trading_symbol, 'BSE', 'BUY', quantity, 'CNC', 'Automatic'
+                )
+
+                if isinstance(order_id_bse, KiteException):
+                    # If it failed on BSE as well
+                    message = f"Error placing order for {trading_symbol} on BSE after NSE failed. Error: {str(order_id_bse)}"
+                    print(message)
+                    order_placement.send_telegram_message(message)
+                else:
+                    # If it succeeded on BSE
+                    message = f"Order placed successfully for {trading_symbol} on BSE. Order ID: {order_id_bse}"
+                    print(message)
+                    order_placement.send_telegram_message(message)
+            else:
+                # Handle other Kite exceptions
+                message = f"Error placing order for {trading_symbol} on NSE: {str(order_id)}"
+                print(message)
+                order_placement.send_telegram_message(message)
+        else:
+            # If the order was placed successfully on NSE
+            message = f"Order placed successfully for {trading_symbol} on NSE. Order ID: {order_id}"
+            print(message)
+            order_placement.send_telegram_message(message)
 
 if __name__ == "__main__":
     main() 
