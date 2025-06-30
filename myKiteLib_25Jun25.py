@@ -291,7 +291,21 @@ class system_initialization:
         Pnl = pd.read_sql(query, self.con)
         print("Got PnL")
         self.con.close()
-        return Pnl
+
+        active_trades_df = Pnl[Pnl['trade_status'] == 'Open']
+        closed_trades_df = Pnl[Pnl['trade_status'] == 'Closed']
+
+        metrics = {
+            'pnl_df': Pnl,
+            'num_active_trades': len(active_trades_df),
+            'active_trades_pnl': active_trades_df['pnl'].sum(),
+            'num_closed_trades': len(closed_trades_df),
+            'closed_trades_pnl': closed_trades_df['pnl'].sum(),
+            'total_trades': len(Pnl),
+            'total_pnl': Pnl['pnl'].sum()
+        }
+
+        return Pnl, metrics
 
     def run_query_full(self, query):
         self.con = sqlConnector.connect(host=self.mysql_hostname, user=self.mysql_username, password=self.mysql_password, database=self.mysql_database_name, port=self.mysql_port,auth_plugin='mysql_native_password')
@@ -532,11 +546,14 @@ class OrderPlacement():
             
             print(f"OrderPlacement: Market order placed for {tradingsymbol}. Order ID: {order_id}")
             return order_id
+        
         except KiteException as e:
-            print(f"[{datetime.datetime.now()}] PLACE_ORDER_LIVE: Kite API Exception: {e}")
+            # print(f"[{datetime.datetime.now()}] PLACE_ORDER_LIVE: Kite API Exception: {e}")
+            return e
             # Consider specific error handling or re-raising
         except Exception as e:
-            print(f"[{datetime.datetime.now()}] PLACE_ORDER_LIVE: General Exception: {e}")
+            # print(f"[{datetime.datetime.now()}] PLACE_ORDER_LIVE: General Exception: {e}")
+            return e
         return None
 
     def get_ltp_live(self, instrument_tokens: list[int | str]) -> dict[int, float]:
@@ -618,6 +635,7 @@ class kiteAPIs:
         """Extract required fields from holdings JSON data."""
         holdings_data = []
         holdings_json = self.kite.holdings()
+        # print(holdings_json)
         for holding in holdings_json:
             # Get authorised_date and subtract one day to get actual trade_date
             auth_date_str = holding.get('authorised_date')
@@ -628,16 +646,21 @@ class kiteAPIs:
             else:
                 trade_date_str = None
                 
+            t1_quantity = holding.get('t1_quantity')
+            quantity = holding.get('quantity')
+            if t1_quantity is not None and t1_quantity != 0:
+                quantity = t1_quantity
+
             holdings_data.append({
                 'tradingsymbol': holding.get('tradingsymbol'),
                 'instrument_token': holding.get('instrument_token'),
-                'quantity': holding.get('quantity'),
+                'quantity': quantity,
                 'trade_date': trade_date_str,
                 'exchange': holding.get('exchange'),
                 'average_price': holding.get('average_price'),
                 'last_price': holding.get('last_price'),
                 'pnl': holding.get('pnl'),
-                'pnl_percent': 100.0*holding.get('pnl')/(holding.get('average_price')*holding.get('quantity')),
+                'pnl_percent': 0 if holding.get('average_price') == 0 or quantity == 0 else 100.0*holding.get('pnl')/(holding.get('average_price')*quantity),
                 'data_source': 'holdings'
             })
         return holdings_data
@@ -654,16 +677,20 @@ class kiteAPIs:
         # Extract from 'net' positions
         net_positions = positions_json.get('net', [])
         for position in net_positions:
+            t1_quantity = position.get('t1_quantity')
+            quantity = position.get('quantity')
+            if t1_quantity is not None and t1_quantity != 0:
+                quantity = t1_quantity
             positions_data.append({
                 'tradingsymbol': position.get('tradingsymbol'),
                 'instrument_token': position.get('instrument_token'),
-                'quantity': position.get('quantity'),
+                'quantity': quantity,
                 'trade_date': trade_date_str,
                 'exchange': position.get('exchange'),
                 'average_price': position.get('average_price'),
                 'last_price': position.get('last_price'),
                 'pnl': position.get('pnl'),
-                'pnl_percent': 0 if position.get('quantity') == 0 else 100.0*position.get('pnl')/(position.get('average_price')*position.get('quantity')),
+                'pnl_percent': 0 if quantity == 0 or position.get('average_price') == 0 else 100.0*position.get('pnl')/(position.get('average_price')*quantity),
                 'data_source': 'positions'
             })
         return positions_data
@@ -699,23 +726,19 @@ class kiteAPIs:
     
     def get_trades(self):
         trades = self.kite.trades()
-        trades_df = pd.DataFrame(trades)
-
-        trades_df['fill_timestamp'] = trades_df['fill_timestamp'].dt.strftime('%Y-%m-%d %H:%M:%S')
-        trades_df['order_timestamp'] = trades_df['order_timestamp'].dt.strftime('%Y-%m-%d %H:%M:%S')
-        trades_df['exchange_timestamp'] = trades_df['exchange_timestamp'].dt.strftime('%Y-%m-%d %H:%M:%S')
         
-        try:
-            data_to_insert = list(trades_df[['trade_id', 'order_id', 'exchange', 'tradingsymbol', 'instrument_token','product', 'average_price', 'quantity', 'exchange_order_id','transaction_type', 'fill_timestamp', 'order_timestamp','exchange_timestamp']].itertuples(index=False, name=None))
-        except KeyError as ke:
-            print(f"DataFrame missing expected columns for DB insertion: {ke}. Columns available: {df.columns.tolist()}")
-            data_to_insert = []
-
-        
-
-        if trades_df is None:
-            print("No Trades found")
-        else:
+        if trades:
+            trades_df = pd.DataFrame(trades)
+            trades_df['fill_timestamp'] = trades_df['fill_timestamp'].dt.strftime('%Y-%m-%d %H:%M:%S')
+            trades_df['order_timestamp'] = trades_df['order_timestamp'].dt.strftime('%Y-%m-%d %H:%M:%S')
+            trades_df['exchange_timestamp'] = trades_df['exchange_timestamp'].dt.strftime('%Y-%m-%d %H:%M:%S')
+            
+            try:
+                data_to_insert = list(trades_df[['trade_id', 'order_id', 'exchange', 'tradingsymbol', 'instrument_token','product', 'average_price', 'quantity', 'exchange_order_id','transaction_type', 'fill_timestamp', 'order_timestamp','exchange_timestamp']].itertuples(index=False, name=None))
+            except KeyError as ke:
+                print(f"DataFrame missing expected columns for DB insertion: {ke}. Columns available: {df.columns.tolist()}")
+                data_to_insert = []
+            
             cur = None # Initialize cur to None
             try:
                 cur = self.con.cursor()
@@ -728,6 +751,10 @@ class kiteAPIs:
                 if cur:
                     cur.close() # Close cursor
                     self.con.close() # Close connection after each token's DB operations
+        
+        else:
+            print("No Trades found")
+            
     
     def getHistoricalData(self, from_date, to_date, tokens, interval):
         # embed()

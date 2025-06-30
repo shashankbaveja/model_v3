@@ -94,11 +94,33 @@ def calculate_all_features(df):
         group_df['sma_21'] = ta.trend.sma_indicator(group_df['close'], window=21, fillna=True)
         group_df['sma_200'] = ta.trend.sma_indicator(group_df['close'], window=200, fillna=True)
 
+        # --- Phase 1: Add custom base indicators for new features ---
+        group_df['kama_14'] = ta.momentum.kama(group_df['close'], window=14, fillna=True)
+        group_df['donchian_hband_10'] = ta.volatility.donchian_channel_hband(group_df['high'], group_df['low'], group_df['close'], window=10, fillna=True)
+        group_df['cmf_10'] = ta.volume.chaikin_money_flow(group_df['high'], group_df['low'], group_df['close'], group_df['volume'], window=10, fillna=True)
+        
+        # Calculate True Range for skewness
+        tr1 = group_df['high'] - group_df['low']
+        tr2 = abs(group_df['high'] - group_df['close'].shift(1))
+        tr3 = abs(group_df['low'] - group_df['close'].shift(1))
+        group_df['true_range'] = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
+        # --- End of Phase 1 ---
+
         feature_df = pd.DataFrame(index=group_df.index)
 
         momentum_f, reversion_f, common_f = parse_feature_strategies()
         features_to_build = list(set(momentum_f + reversion_f + common_f))
         features_to_build.append('market_regime_up')
+
+                # --- Add the 13 new features to the list to be built ---
+        new_features = [
+            'flag_mom5_pos', 'flag_pvt_slope', 'flag_macd_pos', 'flag_ema_xover',
+            'flag_sma20_slope', 'flag_kama_diff', 'flag_donch_up', 'flag_ch_vol',
+            'flag_tr_skew', 'flag_obv_slope', 'flag_vol_roc', 'flag_cmf_pos',
+            'flag_vpt_div', 'flag_vwap_dev'
+        ]
+        features_to_build.extend(new_features)
+        # --- End of new feature addition ---
         
         for feature in features_to_build:
             try:
@@ -165,6 +187,47 @@ def calculate_all_features(df):
                     feature_df[feature] = (group_df['trend_cci'] > 100).astype(int)
                 elif feature == 'CCI_oversold_below_minus100':
                     feature_df[feature] = (group_df['trend_cci'] < -100).astype(int)
+                
+                # --- New Features (Phase 2) ---
+                elif feature == 'flag_mom5_pos':
+                    feature_df[feature] = (group_df['close'].diff(5) > 0).astype(int)
+                elif feature == 'flag_pvt_slope':
+                    feature_df[feature] = (group_df['volume_vpt'].diff(5) > 0).astype(int) # PVT is same as VPT
+                elif feature == 'flag_macd_pos':
+                    feature_df[feature] = (group_df['trend_macd_diff'] > 0).astype(int)
+                elif feature == 'flag_ema_xover':
+                    feature_df[feature] = (group_df['trend_ema_fast'] > group_df['trend_ema_slow']).astype(int)
+                elif feature == 'flag_sma20_slope':
+                    feature_df[feature] = (group_df['trend_sma_slow'].diff(5) > 0).astype(int) # trend_sma_slow is 20-period
+                elif feature == 'flag_kama_diff':
+                    feature_df[feature] = ((group_df['kama_14'] - group_df['close']) / group_df['close'] > 0).astype(int)
+                elif feature == 'flag_donch_up':
+                    feature_df[feature] = (group_df['close'] > group_df['donchian_hband_10']).astype(int)
+                elif feature == 'flag_ch_vol': # This is ATR Volatility Spike, not Chaikin Volatility
+                    atr = group_df['volatility_atr']
+                    feature_df[feature] = ((atr.diff(5) / atr.shift(5)) > 0.25).astype(int)
+                elif feature == 'flag_tr_skew':
+                    feature_df[feature] = (group_df['true_range'].rolling(14).skew() > 0).astype(int)
+                elif feature == 'flag_obv_slope':
+                    feature_df[feature] = (group_df['volume_obv'].diff(5) > 0).astype(int)
+                elif feature == 'flag_vol_roc':
+                    feature_df[feature] = ((group_df['volume'].diff(5) / group_df['volume'].shift(5)) > 0.20).astype(int)
+                elif feature == 'flag_cmf_pos':
+                    feature_df[feature] = (group_df['cmf_10'] > 0).astype(int)
+                elif feature == 'flag_vpt_div':
+                    price_up = group_df['close'].diff(1) > 0
+                    vpt_down = group_df['volume_vpt'].diff(1) < 0
+                    price_down = group_df['close'].diff(1) < 0
+                    vpt_up = group_df['volume_vpt'].diff(1) > 0
+                    
+                    # Default to 0
+                    feature_df[feature] = 0
+                    # Bearish divergence
+                    feature_df.loc[price_up & vpt_down, feature] = -1
+                    # Bullish divergence
+                    feature_df.loc[price_down & vpt_up, feature] = 1
+                elif feature == 'flag_vwap_dev':
+                    feature_df[feature] = (abs(group_df['close'] - group_df['VWAP_D']) / group_df['VWAP_D'] > 0.01).astype(int)
                 
                 # --- Common Features (Calculated on the resampled df) ---
                 elif feature == 'ADX_strong_trend_above_25':
@@ -299,6 +362,18 @@ def main():
     momentum_features, reversion_features, common_features = parse_feature_strategies()
     momentum_cols_base = list(set(momentum_features + common_features + ['market_regime_up']))
     reversion_cols_base = list(set(reversion_features + common_features + ['market_regime_up']))
+
+    new_features_to_save = [
+        'flag_mom5_pos', 'flag_pvt_slope', 'flag_macd_pos', 'flag_ema_xover',
+        'flag_sma20_slope', 'flag_kama_diff', 'flag_donch_up', 'flag_ch_vol',
+        'flag_tr_skew', 'flag_obv_slope', 'flag_vol_roc', 'flag_cmf_pos',
+        'flag_vpt_div', 'flag_vwap_dev'
+    ]
+    # Add to both momentum and reversion so they are included in combined
+    momentum_cols_base.extend(new_features_to_save)
+    reversion_cols_base.extend(new_features_to_save)
+    # --- End of fix ---
+
     
     print(f"Momentum model will use {len(momentum_cols_base)} base features.")
     print(f"Mean Reversion model will use {len(reversion_cols_base)} base features.")

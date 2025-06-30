@@ -80,6 +80,7 @@ def main_monitoring_loop():
         sys_init = system_initialization()
         print("Initializing trading connections...")
         sys_init.init_trading()
+        sys_init.hard_refresh_access_token()
         print("Initializing order placement...")
         order_placement = OrderPlacement()
         print("Initializing kite APIs...")

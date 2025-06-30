@@ -84,6 +84,10 @@ def main():
         print("Stopping pipeline due to failure in date update.")
         sys.exit(1)
 
+    config = load_config()
+    order_placement = OrderPlacement()
+    order_placement.send_telegram_message(f"Starting Live Run for date {config['data']['test_end_date']}")
+    
     if not run_step([python_executable,  '-u', 'src/data_backfill/data_backfill_daily.py'], log_file):
         print("Stopping pipeline due to failure in data backfill.")
         sys.exit(1)
@@ -117,9 +121,6 @@ def main():
 
 
 if __name__ == "__main__":
-    config = load_config()
-    order_placement = OrderPlacement()
-    order_placement.send_telegram_message(f"Starting Live Run for date {config['data']['test_end_date']}")
     main() 
 
     
